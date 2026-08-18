@@ -189,7 +189,7 @@ extension UserAuthenticationStateMachine {
         }
     }
 
-    mutating func receiveUserAuthBanner(_: SSHMessage.UserAuthBannerMessage) throws {
+    mutating func receiveUserAuthBanner(_ message: SSHMessage.UserAuthBannerMessage) throws {
         switch (self.delegate, self.state) {
         case (.client, .idle), (.client, .authenticationSucceeded):
             // Server sent a user auth success but we didn't ask them to!
@@ -197,9 +197,15 @@ extension UserAuthenticationStateMachine {
         case (.server, _):
             // Servers may never receive user auth banner messages.
             throw NIOSSHError.protocolViolation(protocolName: Self.protocolName, violation: "client sent user auth banner")
-        default:
-            // In all other instances, receiving user auth banner is legal and must be dealt with by client
-            return
+        case (.client(let clientDelegate), _):
+            // codeine-go patch: upstream discarded the banner text entirely
+            // (`default: return`, message unread). Tailscale SSH's periodic
+            // re-approval check sends its login.tailscale.com URL exactly
+            // this way, and nothing upstream could ever surface it. Forward
+            // it to the delegate instead of dropping it; default
+            // implementation below is a no-op so this is source-compatible
+            // with every existing conformer.
+            clientDelegate.receivedUserAuthBanner(message.message)
         }
     }
 }

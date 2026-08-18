@@ -35,4 +35,25 @@ public protocol NIOSSHClientUserAuthenticationDelegate {
     ///     - availableMethods: The authentication methods the server is willing to accept.
     ///     - nextChallengePromise: An `EventLoopPromise` to be fulfilled with the next authentication offer.
     func nextAuthenticationType(availableMethods: NIOSSHAvailableUserAuthenticationMethods, nextChallengePromise: EventLoopPromise<NIOSSHUserAuthenticationOffer?>)
+
+    /// Called when the server sends an SSH_MSG_USERAUTH_BANNER during
+    /// authentication (RFC 4252 §5.4). Upstream NIOSSH parses this message
+    /// off the wire, validates it belongs in the current state, and then
+    /// discards its content — there was previously no way for a client to
+    /// ever see it. codeine-go patch: forward it instead.
+    ///
+    /// This exists because Tailscale SSH sends its periodic re-approval
+    /// check ("visit https://login.tailscale.com/a/... to authenticate")
+    /// exactly this way, in-band, mid-handshake — not as a keyboard-
+    /// interactive prompt, not as a distinct auth method.
+    ///
+    /// Default implementation is a no-op, so every existing conformer of
+    /// this protocol keeps compiling unchanged.
+    ///
+    /// - parameter message: The banner text, exactly as sent by the server.
+    func receivedUserAuthBanner(_ message: String)
+}
+
+public extension NIOSSHClientUserAuthenticationDelegate {
+    func receivedUserAuthBanner(_ message: String) {}
 }
